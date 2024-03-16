@@ -7,10 +7,9 @@ interface SpotifyResponse {
   tracks: {
     items: Array<{
       id: string;
-      external_urls: {
-        spotify: string;
-      };
+      // ... other fields
     }>;
+    // ... other fields
   };
 }
 
@@ -30,9 +29,11 @@ export async function searchTrack(
     );
     const data: SpotifyResponse = await response.json();
     const firstTrack = data.tracks.items[0];
+    const trackId = firstTrack?.id;
+    const trackUrl = "https://open.spotify.com/track/" + trackId;
     return {
-      id: firstTrack?.id,
-      url: firstTrack?.external_urls?.spotify,
+      id: trackId,
+      url: trackUrl,
     };
   } catch (error) {
     console.error("Error:", error);
