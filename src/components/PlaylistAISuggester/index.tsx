@@ -17,89 +17,115 @@ class PlaylistAISuggester {
   }
 
   async suggest() {
-    console.log(`😎🔥 ~ suggest start ~ base playlist: ${this.playlist.name}`);
-    return this.getTracks()
-      .then(async (data) => {
-        const prompt = `${promptPrefix}\n${data.join("\n")}`;
+    try {
+      console.log(
+        `😎🔥 ~ suggest start ~ base playlist: ${this.playlist.name}`
+      );
+      const baseTracks = await this.getTracks();
 
-        const contents = [
-          new HumanMessage({
-            content: [
-              {
-                type: "text",
-                text: prompt,
-              },
-            ],
-          }),
-        ];
+      const generatedSuggestions = await this.generateSongSuggestions(
+        baseTracks
+      );
 
-        const response = new ChatGoogleGenerativeAI({
-          modelName: "gemini-pro",
-          apiKey: "AIzaSyDqsl6ucn298DNByeiuT09gUQpCTl6aVZ0",
-          safetySettings: [
-            {
-              category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-              threshold: HarmBlockThreshold.BLOCK_NONE,
-            },
-          ],
-        });
+      console.log(
+        "😎🔥 ~ PlaylistAISuggester ~ suggest ~ generatedSuggestions:",
+        generatedSuggestions
+      );
 
-        // Multi-modal streaming
-        const streamRes = await response.stream(contents);
+      const searchResults = await this.searchSpotifyTracks(
+        generatedSuggestions
+      );
 
-        // Read from the stream and interpret the output as markdown
-        const buffer = [];
+      console.log(
+        "😎🔥 ~ PlaylistAISuggester ~ suggest ~ searchResults:",
+        searchResults
+      );
 
-        for await (const chunk of streamRes) {
-          buffer.push(chunk.content);
-        }
-
-        // remove the ```json``` markdown
-        const jsonStr = buffer
-          .join("")
-          .replace(/```json/g, "")
-          .replace(/```/g, "");
-
-        // convert the response to JSON
-        const json = JSON.parse(jsonStr);
-
-        // create a list of songs
-        const songs: { name: string; artist: string; score: string }[] =
-          json.map((song: any) => {
-            return {
-              name: song.name,
-              artist: song.artist,
-              score: song.score,
-            };
-          });
-
-        console.log(
-          "😎🔥 ~ AI RESPONSE ~\n",
-          songs.map((s) => `${s.name} - ${s.artist} - ${s.score}`).join("\n")
-        );
-
-        // search for the track in Spotify
-        const searchResults = await Promise.all(
-          songs.map((song) =>
-            searchTrack(song.name, song.artist, this.accessToken)
-          )
-        );
-
-        // create a list of tracks
-        const tracks = searchResults.map((track, index) => {
-          return {
-            ...songs[index],
-            id: track?.id,
-            url: track?.url,
-          };
-        });
-
-        console.log("😎🔥 ~ PlaylistAISuggester ~ tracks ~ tracks:", tracks);
-      })
-
-      .catch((error) => {
-        console.error("😎🔥 ~ Suggest error", error);
+      // map the search results to the generated suggestions
+      const tracks = searchResults.map((track, index) => {
+        return {
+          ...generatedSuggestions[index],
+          id: track?.id,
+          url: track?.url,
+        };
       });
+
+      console.log(
+        "😎🔥 ~ PlaylistAISuggester ~ suggest ~ generatedSuggestions + searchResults:",
+        tracks
+      );
+    } catch (error) {
+      console.error("😎🔥 ~ Suggest error", error);
+    }
+  }
+
+  async generateSongSuggestions(data: string[]) {
+    const prompt = `${promptPrefix}\n${data.join("\n")}`;
+
+    const contents = [
+      new HumanMessage({
+        content: [
+          {
+            type: "text",
+            text: prompt,
+          },
+        ],
+      }),
+    ];
+
+    const response = new ChatGoogleGenerativeAI({
+      modelName: "gemini-pro",
+      apiKey: "AIzaSyDqsl6ucn298DNByeiuT09gUQpCTl6aVZ0",
+      safetySettings: [
+        {
+          category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+          threshold: HarmBlockThreshold.BLOCK_NONE,
+        },
+      ],
+    });
+
+    // Multi-modal streaming
+    const streamRes = await response.stream(contents);
+
+    // Read from the stream and interpret the output as markdown
+    const buffer = [];
+
+    for await (const chunk of streamRes) {
+      buffer.push(chunk.content);
+    }
+
+    // remove the ```json``` markdown
+    const jsonStr = buffer
+      .join("")
+      .replace(/```json/g, "")
+      .replace(/```/g, "");
+
+    // convert the response to JSON
+    const json = JSON.parse(jsonStr);
+
+    // create a list of songs
+    const songs: { name: string; artist: string; score: string }[] = json.map(
+      (song: any) => {
+        return {
+          name: song.name,
+          artist: song.artist,
+          score: song.score,
+        };
+      }
+    );
+
+    return songs;
+  }
+
+  async searchSpotifyTracks(
+    songs: { name: string; artist: string; score: string }[]
+  ) {
+    // search for the track in Spotify
+    const searchResults = await Promise.all(
+      songs.map((song) => searchTrack(song.name, song.artist, this.accessToken))
+    );
+
+    return searchResults;
   }
 
   private getArtistsName(artists: any) {
