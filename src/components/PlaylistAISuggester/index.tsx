@@ -2,6 +2,8 @@ import TracksBaseData from "components/data/TracksBaseData";
 import { HumanMessage } from "@langchain/core/messages";
 import { HarmBlockThreshold, HarmCategory } from "@google/generative-ai";
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
+import { promptPrefix } from "./consts";
+import { searchTrack } from "components/data/searchTrack";
 
 class PlaylistAISuggester {
   accessToken: string;
@@ -15,12 +17,10 @@ class PlaylistAISuggester {
   }
 
   async suggest() {
-    console.log("😎🔥 ~ suggest start");
+    console.log(`😎🔥 ~ suggest start ~ base playlist: ${this.playlist.name}`);
     return this.getTracks()
       .then(async (data) => {
-        const prompt = `I have compiled a list of songs that I love listening to. Help me create a playlist of 10 songs that match my music taste. Analyze my favorite songs and select tracks that are similar in genre, style, and mood to discover new music I'll enjoy. At least one-third of the list must contain artists whose songs are not included in the attached list to help expose artists I do not know. Don't suggest songs that are already on the list! Your response should contain 10 suggested songs in a JSON format; the song JS should match this type:{name: string, artist: string}. Please do your best, it's very important to me. This is the list:\n${data.join(
-          "\n"
-        )}`;
+        const prompt = `${promptPrefix}\n${data.join("\n")}`;
 
         const contents = [
           new HumanMessage({
@@ -35,7 +35,7 @@ class PlaylistAISuggester {
 
         const response = new ChatGoogleGenerativeAI({
           modelName: "gemini-pro",
-          apiKey: process.env.GOOGLE_API_KEY,
+          apiKey: "AIzaSyDqsl6ucn298DNByeiuT09gUQpCTl6aVZ0",
           safetySettings: [
             {
               category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
@@ -64,20 +64,39 @@ class PlaylistAISuggester {
         const json = JSON.parse(jsonStr);
 
         // create a list of songs
-        const songs: { name: string; artist: string }[] = json.map(
-          (song: any) => {
+        const songs: { name: string; artist: string; score: string }[] =
+          json.map((song: any) => {
             return {
               name: song.name,
               artist: song.artist,
+              score: song.score,
             };
-          }
-        );
+          });
 
         console.log(
           "😎🔥 ~ AI RESPONSE ~\n",
-          songs.map((s) => `${s.name} - ${s.artist}`).join("\n")
+          songs.map((s) => `${s.name} - ${s.artist} - ${s.score}`).join("\n")
         );
+
+        // search for the track in Spotify
+        const searchResults = await Promise.all(
+          songs.map((song) =>
+            searchTrack(song.name, song.artist, this.accessToken)
+          )
+        );
+
+        // create a list of tracks
+        const tracks = searchResults.map((track, index) => {
+          return {
+            ...songs[index],
+            id: track?.id,
+            url: track?.url,
+          };
+        });
+
+        console.log("😎🔥 ~ PlaylistAISuggester ~ tracks ~ tracks:", tracks);
       })
+
       .catch((error) => {
         console.error("😎🔥 ~ Suggest error", error);
       });
