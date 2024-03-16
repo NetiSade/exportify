@@ -1,7 +1,21 @@
-import { library } from '@fortawesome/fontawesome-svg-core'
-import { fab } from '@fortawesome/free-brands-svg-icons'
-import { faCheckCircle, faTimesCircle, faFileArchive, faHeart } from '@fortawesome/free-regular-svg-icons'
-import { faBolt, faMusic, faDownload, faCog, faSearch, faTimes, faSignOutAlt } from '@fortawesome/free-solid-svg-icons'
+import { library } from "@fortawesome/fontawesome-svg-core";
+import { fab } from "@fortawesome/free-brands-svg-icons";
+import {
+  faCheckCircle,
+  faTimesCircle,
+  faFileArchive,
+  faHeart,
+} from "@fortawesome/free-regular-svg-icons";
+import {
+  faBolt,
+  faMusic,
+  faDownload,
+  faCog,
+  faSearch,
+  faTimes,
+  faSignOutAlt,
+  faRobot,
+} from "@fortawesome/free-solid-svg-icons";
 
 library.add(
   fab,
@@ -12,8 +26,9 @@ library.add(
   faBolt,
   faMusic,
   faDownload,
+  faRobot,
   faCog,
   faSearch,
   faTimes,
   faSignOutAlt
-)
+);
