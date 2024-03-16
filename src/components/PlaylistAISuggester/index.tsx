@@ -1,9 +1,7 @@
 import TracksBaseData from "components/data/TracksBaseData";
-import { HumanMessage } from "@langchain/core/messages";
-import { HarmBlockThreshold, HarmCategory } from "@google/generative-ai";
-import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { promptPrefix } from "./consts";
-import { searchTrack } from "components/data/searchTrack";
+import { searchTrack } from "api/searchTrack";
+import { chatGoogleGenerativeAI } from "api/chatGoogleGenerativeAI";
 
 class PlaylistAISuggester {
   accessToken: string;
@@ -63,43 +61,10 @@ class PlaylistAISuggester {
     try {
       const prompt = `${promptPrefix}\n${data.join("\n")}`;
 
-      const contents = [
-        new HumanMessage({
-          content: [
-            {
-              type: "text",
-              text: prompt,
-            },
-          ],
-        }),
-      ];
+      const response = await chatGoogleGenerativeAI(prompt);
 
-      const response = new ChatGoogleGenerativeAI({
-        modelName: "gemini-pro",
-        apiKey: "AIzaSyDqsl6ucn298DNByeiuT09gUQpCTl6aVZ0",
-        safetySettings: [
-          {
-            category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-            threshold: HarmBlockThreshold.BLOCK_NONE,
-          },
-        ],
-      });
-
-      // Multi-modal streaming
-      const streamRes = await response.stream(contents);
-
-      // Read from the stream and interpret the output as markdown
-      const buffer = [];
-
-      for await (const chunk of streamRes) {
-        buffer.push(chunk.content);
-      }
-
-      // remove the ```json``` markdown
-      const jsonStr = buffer
-        .join("")
-        .replace(/```json/g, "")
-        .replace(/```/g, "");
+      // remove the ```json``` markdown from the response
+      const jsonStr = response.replace(/```json/gi, "").replace(/```/g, "");
 
       // convert the response to JSON
       const json = JSON.parse(jsonStr);
@@ -128,7 +93,9 @@ class PlaylistAISuggester {
     try {
       // search for the track in Spotify
       const searchResults = await Promise.all(
-        songs.map((song) => searchTrack(song.name, song.artist, this.accessToken))
+        songs.map((song) =>
+          searchTrack(song.name, song.artist, this.accessToken)
+        )
       );
 
       return searchResults;
@@ -144,7 +111,10 @@ class PlaylistAISuggester {
 
   async getTracks() {
     try {
-      const tracksBaseData = new TracksBaseData(this.accessToken, this.playlist);
+      const tracksBaseData = new TracksBaseData(
+        this.accessToken,
+        this.playlist
+      );
       const items = await tracksBaseData.trackItems();
 
       const tracks = items.map(
