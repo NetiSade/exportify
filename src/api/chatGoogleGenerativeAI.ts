@@ -19,7 +19,6 @@ export const chatGoogleGenerativeAI = async (
 
     const response = new ChatGoogleGenerativeAI({
       modelName: "gemini-pro",
-      apiKey: "AIzaSyDqsl6ucn298DNByeiuT09gUQpCTl6aVZ0",
       safetySettings: [
         {
           category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
